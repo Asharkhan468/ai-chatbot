@@ -35,7 +35,6 @@ export default function Login() {
     }
 
     toast.success("Login Successful");
-
    
     localStorage.setItem("userId", data.userId)
     localStorage.setItem("userName", data.name)
