@@ -30,7 +30,7 @@ export default function Login() {
     console.log(data)
 
     if (!res.ok) {
-      alert(data.error || "Login failed")
+      toast.success(data.error || "Login failed")
       return
     }
 
