@@ -47,7 +47,7 @@ export default function Register() {
         return;
       }
 
-      toast.success("Registration successful 🎉");
+      toast.success("Registration successful");
       router.push("/login");
     } catch (error) {
       console.error("Register Error:", error);
