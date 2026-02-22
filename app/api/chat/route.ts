@@ -1,35 +1,29 @@
+import OpenAI from "openai";
+
+const client = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: process.env.GROQ_BASE_URL,
+});
+
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
+    const body = await req.json();
 
     if (!body.message) {
-      return Response.json(
-        { error: "Message is required" },
-        { status: 400 }
-      )
+      return Response.json({ error: "Message required" }, { status: 400 });
     }
 
-    const response = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "llama3.2:3b",
-        prompt: body.message,
-        stream: false,
-      }),
-    })
+    const response = await client.responses.create({
+      model: "openai/gpt-oss-20b",
+      input: body.message,
+    });
 
-    const data = await response.json()
+    return Response.json({
+      reply: response.output_text,
+    });
 
-    return Response.json({ reply: data.response })
-
-  } catch (error) {
-    console.error("Chat API Error:", error)
-    return Response.json(
-      { error: "Something went wrong" },
-      { status: 500 }
-    )
+  } catch (error: any) {
+    console.error(error);
+    return Response.json({ error: error.message }, { status: 500 });
   }
 }

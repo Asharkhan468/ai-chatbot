@@ -20,7 +20,7 @@ export default function Home() {
   const [userName, setUserName] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const [copiedIndex, setCopiedIndex] = useState(null);
-  const [currentChatId, setCurrentChatId] = useState(Date.now()); // unique chat session
+  const [currentChatId, setCurrentChatId] = useState(Date.now()); 
 
   // Inside your component
   const [recentChats, setRecentChats] = useState<any>([]);
@@ -173,6 +173,8 @@ export default function Home() {
   };
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#0b1120] to-black text-white flex">
+     
+      
       <aside className="hidden md:flex flex-col w-64 bg-white/5 backdrop-blur-xl border-r border-white/10 p-5 h-screen sticky top-0">
         {/* Header */}
         <h2 className="text-lg text-center font-semibold mb-6 tracking-wide text-white/90">
@@ -228,6 +230,8 @@ export default function Home() {
           </button>
         </div>
       </aside>
+
+    
       {/* Main Chat Section */}
       <div className="flex-1 flex flex-col">
         {/* Top Navbar */}
