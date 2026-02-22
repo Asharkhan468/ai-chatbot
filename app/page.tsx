@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -12,6 +12,10 @@ import {
   faCheck,
 } from "@fortawesome/free-solid-svg-icons";
 import toast from "react-hot-toast";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+import rehypeHighlight from "rehype-highlight";
 
 export default function ChatApp() {
   const router = useRouter();
@@ -22,9 +26,23 @@ export default function ChatApp() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [userName, setUserName] = useState("");
 
-  const userName = "Ashar Khan";
-  const firstLetter = userName[0];
+
+
+
+  useEffect(() => {
+  const name = localStorage.getItem("userName");
+  if (name) setUserName(name);
+}, []);
+
+const firstLetter = userName
+  .trim()
+  .split(" ")
+  .map(word => word[0])
+  .join("")
+  .slice(0, 2)
+  .toUpperCase() || "AK";
 
   const handleNewChat = () => {
     setMessages([]);
@@ -33,21 +51,34 @@ export default function ChatApp() {
       { id: Date.now(), title: `Chat ${prev.length + 1}` },
     ]);
   };
-
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!message.trim()) return;
-    setMessages((prev) => [...prev, { role: "user", text: message }]);
+
+    const userMessage = message;
+
+    setMessages((prev) => [...prev, { role: "user", text: userMessage }]);
     setMessage("");
-    // Simulate AI response
     setLoading(true);
-    setTimeout(() => {
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await res.json();
+
+      setMessages((prev) => [...prev, { role: "ai", text: data.reply }]);
+    } catch (error) {
       setMessages((prev) => [
         ...prev,
-        { role: "ai", text: "This is a simulated AI response." },
+        { role: "ai", text: "Server error. Try again." },
       ]);
-      setLoading(false);
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 1000);
+    }
+
+    setLoading(false);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleCopy = (text: string, index: number) => {
@@ -56,75 +87,127 @@ export default function ChatApp() {
     setTimeout(() => setCopiedIndex(null), 1500);
   };
 
-  const renderMessage = (text: string) => <span>{text}</span>;
-
+  const renderMessage = (text: string) => (
+    <div className="prose prose-invert max-w-none 
+                prose-table:border-collapse 
+                prose-th:border prose-th:border-white/20 prose-th:px-4 prose-th:py-2
+                prose-td:border prose-td:border-white/20 prose-td:px-4 prose-td:py-2
+                prose-headings:text-white
+                prose-strong:text-white
+                break-words">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          table: ({ ...props }) => (
+            <div className="overflow-x-auto my-4">
+              <table
+                className="w-full border border-white/20 text-sm"
+                {...props}
+              />
+            </div>
+          ),
+          thead: ({ ...props }) => <thead className="bg-white/10" {...props} />,
+          th: ({ ...props }) => (
+            <th
+              className="border border-white/20 px-4 py-2 text-left font-semibold"
+              {...props}
+            />
+          ),
+          td: ({ ...props }) => (
+            <td className="border border-white/20 px-4 py-2" {...props} />
+          ),
+          code({ inline, className, children, ...props }: any) {
+            return inline ? (
+              <code
+                className="bg-black/40 px-1 py-0.5 rounded text-sm"
+                {...props}
+              >
+                {children}
+              </code>
+            ) : (
+              <pre className="bg-black/70 p-4 rounded-xl overflow-x-auto my-4 text-sm">
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              </pre>
+            );
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#0b1120] to-black text-white flex">
       {/* Sidebar */}
-     <aside
-  className={`fixed inset-y-0 left-0 z-20 w-64 bg-white/5 backdrop-blur-xl border-r border-white/10 p-5 
-    h-screen flex flex-col transform transition-transform duration-300
-    ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 md:static`}
->
-  {/* Close button (mobile only) */}
-  <div className="md:hidden flex justify-end mb-4">
-    <button onClick={() => setSidebarOpen(false)}>
-      <FontAwesomeIcon icon={faTimes} className="text-white text-xl" />
-    </button>
-  </div>
-
-  {/* Header */}
-  <h2 className="text-lg text-center font-semibold mb-6 tracking-wide text-white/90">
-    My AI Assistant
-  </h2>
-
-  {/* New Chat Button */}
-  <button
-    onClick={handleNewChat}
-    className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl py-2 px-4 text-sm font-medium hover:scale-105 hover:shadow-lg transition-all w-full justify-center mb-3"
-  >
-    <FontAwesomeIcon icon={faPlus} className="text-white text-sm" />
-    New Chat
-  </button>
-
-  {/* Conversation List */}
-  <div className="flex-1 overflow-y-auto space-y-2 text-sm">
-    {recentChats.length === 0 ? (
-      <div className="p-2 text-gray-400">No recent conversations</div>
-    ) : (
-      recentChats.map((chat) => (
-        <div
-          key={chat.id}
-          className="p-2 rounded-lg hover:bg-white/10 cursor-pointer transition"
-          onClick={() => {
-            const storedMessages = JSON.parse(
-              localStorage.getItem("chatHistory") || "[]"
-            );
-            setMessages(storedMessages);
-            setSidebarOpen(false);
-          }}
-        >
-          {chat.title}
+      <aside
+        className={`fixed inset-y-0 left-0 z-20 w-64 bg-white/5 backdrop-blur-xl border-r border-white/10 p-5 h-screen transform transition-transform duration-300
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0  md:flex flex-col`}
+      >
+        {/* Close button (mobile only) */}
+        <div className="md:hidden flex justify-end mb-4">
+          <button onClick={() => setSidebarOpen(false)}>
+            <FontAwesomeIcon icon={faTimes} className="text-white text-xl" />
+          </button>
         </div>
-      ))
-    )}
-  </div>
 
-  {/* Logout Button */}
-  <div className="mt-auto">
-    <button
-      onClick={async () => {
-        await fetch("/api/logout", { method: "POST" });
-        toast.success("Logged out successfully!");
-        router.push("/login");
-      }}
-      className="flex items-center gap-2 bg-red-500 hover:bg-red-400 text-white rounded-xl py-2 px-4 text-sm font-medium w-full justify-center transition-all shadow-md mt-3"
-    >
-      <FontAwesomeIcon icon={faSignOutAlt} className="text-white text-sm" />
-      Logout
-    </button>
-  </div>
-</aside>
+        {/* Header */}
+        <h2 className="text-lg text-center font-semibold mb-6 tracking-wide text-white/90">
+          My AI Assistant
+        </h2>
+
+        {/* New Chat Button */}
+        <button
+          onClick={handleNewChat}
+          className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-xl py-2 px-4 text-sm font-medium hover:scale-105 hover:shadow-lg transition-all w-full justify-center mb-3"
+        >
+          <FontAwesomeIcon icon={faPlus} className="text-white text-sm" />
+          New Chat
+        </button>
+
+        {/* Conversation List */}
+        <div className="flex-1 space-y-2 text-sm overflow-y-auto">
+          {recentChats.length === 0 ? (
+            <div className="p-2 text-gray-400">No recent conversations</div>
+          ) : (
+            recentChats.map((chat) => (
+              <div
+                key={chat.id}
+                className="p-2 rounded-lg hover:bg-white/10 cursor-pointer transition"
+                onClick={() => {
+                  const storedMessages = JSON.parse(
+                    localStorage.getItem("chatHistory") || "[]",
+                  );
+                  setMessages(storedMessages);
+                  setSidebarOpen(false); // close sidebar on mobile when selecting chat
+                }}
+              >
+                {chat.title}
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Logout Button */}
+        <div className="mt-auto">
+          <button
+            onClick={async () => {
+              await fetch("/api/logout", { method: "POST" });
+              toast.success("Logged out successfully!");
+              router.push("/login");
+            }}
+            className="flex items-center gap-2 bg-red-500 hover:bg-red-400 text-white rounded-xl py-2 px-4 text-sm font-medium w-full justify-center transition-all shadow-md mt-3"
+          >
+            <FontAwesomeIcon
+              icon={faSignOutAlt}
+              className="text-white text-sm"
+            />
+            Logout
+          </button>
+        </div>
+      </aside>
 
       {/* Main Chat Section */}
       <div className="flex-1 flex flex-col">
